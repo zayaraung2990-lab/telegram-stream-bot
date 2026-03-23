@@ -5,10 +5,9 @@ from telegram import Bot
 
 app = Quart(__name__)
 
-# Environment Variables ကနေယူမယ်
+# Environment Variables
 TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=TOKEN)
-# Render ကပေးတဲ့ သင့်ရဲ့ URL ကို ဒီမှာထည့်ပါ
 BASE_URL = "https://telegram-stream-bot-4i9y.onrender.com"
 
 @app.route('/')
@@ -19,17 +18,14 @@ async def index():
 async def stream_video(file_id):
     try:
         file = await bot.get_file(file_id)
-        # Telegram ရဲ့ File path ကို လှမ်းယူတာပါ
         direct_url = file.file_path
-        # အဲ့ဒီ URL ဆီကို Redirect လုပ်ပေးလိုက်မယ်
         return Response(direct_url, status=302, headers={'Location': direct_url})
     except Exception as e:
         return f"Error: {str(e)}", 500
 
-async def main():
-    # ဒီအပိုင်းက Bot ဆီစာရောက်ရင် အလုပ်လုပ်မယ့် logic ပါ (Poll လုပ်တာ)
+async def bot_polling():
     offset = 0
-    print("Bot is polling for messages...")
+    print("Bot is polling...")
     while True:
         try:
             updates = await bot.get_updates(offset=offset, timeout=10)
@@ -43,11 +39,12 @@ async def main():
             print(f"Polling Error: {e}")
         await asyncio.sleep(1)
 
+@app.before_serving
+async def startup():
+    # Background မှာ bot polling ကို စလုပ်ခိုင်းတာပါ
+    asyncio.create_task(bot_polling())
+
 if __name__ == "__main__":
     import uvicorn
-    # Bot polling ကို background မှာ run မယ်
-    loop = asyncio.get_event_loop()
-    loop.create_task(main())
-    
-    port = int(os.getenv("PORT", 8080))
+    port = int(os.getenv("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
